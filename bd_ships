@@ -1,0 +1,83 @@
+"""Рассматривается БД кораблей, участвовавших во второй мировой войне. Имеются следующие отношения:
+Classes (class, type, country, numGuns, bore, displacement)
+Ships (name, class, launched)
+Battles (name, date)
+Outcomes (ship, battle, result)
+Корабли в «классах» построены по одному и тому же проекту, и классу присваивается либо имя первого корабля, построенного по данному проекту, либо названию класса дается имя проекта, которое не совпадает ни с одним из кораблей в БД. Корабль, давший название классу, называется головным.
+Отношение Classes содержит имя класса, тип (bb для боевого (линейного) корабля или bc для боевого крейсера), страну, в которой построен корабль, число главных орудий, калибр орудий (диаметр ствола орудия в дюймах) и водоизмещение (вес в тоннах). В отношении Ships записаны название корабля, имя его класса и год спуска на воду. В отношение Battles включены название и дата битвы, в которой участвовали корабли, а в отношении Outcomes – результат участия данного корабля в битве (потоплен-sunk, поврежден - damaged или невредим - OK).
+Замечания. 
+1) В отношение Outcomes могут входить корабли, отсутствующие в отношении Ships.
+2) Потопленный корабль в последующих битвах участия не принимает."""
+
+
+
+
+Задача № 47:
+“Определить страны, которые потеряли в сражениях все свои корабли.”
+Решение:
+WITH T AS 
+(SELECT DISTINCT name, 
+country,
+result FROM Classes
+JOIN Ships ON Ships.class = Classes.class
+LEFT JOIN Outcomes ON Ships.name = Outcomes.ship
+UNION
+SELECT DISTINCT ship AS name, 
+country, 
+result FROM Outcomes
+JOIN Classes ON Classes.class = Outcomes.ship
+WHERE ship NOT IN (SELECT name FROM ships)),
+D AS
+(SELECT DISTINCT country,
+ 			COUNT(DISTINCT name) AS A FROM T
+WHERE result='sunk' 
+GROUP BY country), 
+C AS
+(SELECT DISTINCT country, 
+COUNT(DISTINCT name) AS B FROM T 
+GROUP BY country)
+SELECT C.country FROM C
+JOIN D ON C.country = D.country
+WHERE A = B
+
+
+
+
+
+Задача № 48:
+“Найдите классы кораблей, в которых хотя бы один корабль был потоплен в сражении.”
+Решение:
+
+SELECT classes.class FROM classes
+JOIN ships ON classes.class = ships.class
+WHERE ships.name IN (SELECT ship FROM outcomes WHERE result = 'sunk')
+UNION
+SELECT classes.class FROM classes
+WHERE classes.class IN (SELECT ship FROM outcomes WHERE result = 'sunk')
+
+
+
+
+
+Задача № 51:
+“ Найдите названия кораблей, имеющих наибольшее число орудий среди всех имеющихся кораблей такого же водоизмещения (учесть корабли из таблицы Outcomes).”
+Решение:
+WITH T AS
+(SELECT name, 
+displacement, 
+numGuns FROM classes
+JOIN ships ON Classes.class = Ships.class
+UNION
+SELECT ship AS name, 
+displacement, 
+numGuns FROM classes
+JOIN Outcomes ON Outcomes.ship = Classes.class
+WHERE ship NOT IN (SELECT name FROM Ships))
+SELECT DISTINCT T.name FROM T, T AS T1
+WHERE T.numGuns = ANY (SELECT MAX(numGuns) FROM T
+WHERE T.displacement = T1.displacement 
+GROUP BY displacement) AND T.displacement = T1.displacement
+
+
+
+
